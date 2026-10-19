@@ -149,13 +149,10 @@ jobs:
           else
             echo "Namespace already exists or custom module build file is absent; no patch needed."
           fi
-          # Expo autolinking requires versionName on this native Android library.
+          # Expo autolinking reads android.defaultConfig.versionName.
+          # Ensure the property is configured inside the Android extension, not at project level.
           if [[ -f "$BUILD_FILE" ]] && ! grep -Eq 'versionName[[:space:]]+' "$BUILD_FILE"; then
-            if grep -Eq '^[[:space:]]*defaultConfig[[:space:]]*\\{' "$BUILD_FILE"; then
-              sed -i "/^[[:space:]]*defaultConfig[[:space:]]*{/a\\        versionName '1.0.0'" "$BUILD_FILE"
-            else
-              printf "\\ndefaultConfig {\\n    versionName '1.0.0'\\n}\\n" >> "$BUILD_FILE"
-            fi
+            printf "\\nandroid {\\n    defaultConfig {\\n        versionName '1.0.0'\\n    }\\n}\\n" >> "$BUILD_FILE"
           fi
           sed -n '1,65p' "$BUILD_FILE" 2>/dev/null || true
 
