@@ -166,6 +166,29 @@ jobs:
           fi
           sed -n '1,65p' "$BUILD_FILE" 2>/dev/null || true
 
+      - name: Fix Kotlin AsyncFunction return inference
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE="$(dirname "$ANDROID_PROJECT_DIR")/artifacts/swift-launcher/modules/swift-launcher/android/src/main/java/expo/modules/swiftlauncher/SwiftLauncherModule.kt"
+          test -f "$SOURCE"
+          python3 - "$SOURCE" <<'PY'
+          import pathlib, sys
+          p = pathlib.Path(sys.argv[1])
+          lines = p.read_text().splitlines(keepends=True)
+          # These four Promise-handling AsyncFunction lambdas end with promise.resolve/reject,
+          # whose Unit return is inferred against Expo's Any? function signature.
+          for number in (229, 127, 73, 67):
+              if len(lines) < number or "promise." not in lines[number - 1]:
+                  raise SystemExit(f"Unexpected SwiftLauncherModule.kt at line {number}: " +
+                                   (lines[number - 1].rstrip() if len(lines) >= number else "<EOF>"))
+              indent = lines[number - 1][:len(lines[number - 1]) - len(lines[number - 1].lstrip())]
+              lines.insert(number, indent + "null\n")
+          p.write_text("".join(lines))
+          print("Added explicit null return values to four Promise-handling AsyncFunction lambdas.")
+          PY
+          nl -ba "$SOURCE" | sed -n '60,80p;120,135p;225,240p'
+
       - name: Build release APK
         shell: bash
         env:
