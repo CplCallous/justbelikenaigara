@@ -134,7 +134,7 @@ jobs:
               NAMESPACE="$(sed -n 's/.*package=[\"'"'"']\([^\"'"'"']*\)[\"'"'"'].*/\1/p' "$MANIFEST" | head -1)"
             fi
             if [[ -z "$NAMESPACE" ]]; then
-              NAMESPACE="com.swiftlauncher.native"
+              NAMESPACE="com.swiftlauncher.nativebridge"
             fi
             echo "Adding namespace $NAMESPACE to $BUILD_FILE"
             if grep -Eq '^[[:space:]]*android[[:space:]]*\\{' "$BUILD_FILE"; then
