@@ -182,6 +182,17 @@ jobs:
           targets = [i for i, line in enumerate(lines)
                      if re.search(r'\bpromise\.(?:resolve|reject)\s*\(', line)]
           if len(targets) != 4:
+              print("PROMISE_MATCHES:", [(i + 1, lines[i].rstrip()) for i in targets], flush=True)
+              print("SOURCE_CONTEXT_BEGIN", flush=True)
+              for start, end in ((55, 82), (115, 140), (215, 245)):
+                  print(f"LINES {start}-{end}", flush=True)
+                  for n in range(start, min(end, len(lines)) + 1):
+                      print(f"{n}: {lines[n-1].rstrip()}", flush=True)
+              print("SOURCE_RELEVANT_LINES", flush=True)
+              for n, line in enumerate(lines, 1):
+                  if re.search(r'asyncfunction|promise|resolve|reject', line, re.IGNORECASE):
+                      print(f"{n}: {line.rstrip()}", flush=True)
+              print("SOURCE_CONTEXT_END", flush=True)
               raise SystemExit(f"Expected 4 Promise resolve/reject call sites, found {len(targets)}: " +
                                ", ".join(str(i + 1) for i in targets))
           for i in reversed(targets):
