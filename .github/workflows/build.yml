@@ -189,10 +189,10 @@ jobs:
               # These parameterless Expo AsyncFunctions infer Any? as their result.
               # Returning bare Unit when ReactContext is unavailable fails Kotlin compilation.
               pattern = re.compile(
-                  r'(AsyncFunction\\("' + re.escape(name) +
-                  r'"\\)\\s*\\{\\s*val context = appContext\\.reactContext \\?: return@AsyncFunction)(?!\\s+(?:null|false|true|emptyList))'
+                  r'(AsyncFunction\("' + re.escape(name) +
+                  r'"\)\s*\{\s*val context = appContext\.reactContext \?: return@AsyncFunction)(?!\s+(?:null|false|true|emptyList))'
               )
-              source, count = pattern.subn(r'\\1 null', source, count=1)
+              source, count = pattern.subn(r'\1 null', source, count=1)
               if count != 1:
                   raise SystemExit(f"Could not patch exactly one missing nullable return in AsyncFunction {name}: {count}")
           path.write_text(source)
