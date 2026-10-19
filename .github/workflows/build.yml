@@ -7,10 +7,7 @@ on:
       - main
       - master
     paths:
-      - 'artifacts/swift-launcher/**'
-      - 'lib/**'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
+      - 'launcherreplit-with-build-workflow.zip'
       - '.github/workflows/build.yml'
 
 permissions:
@@ -30,16 +27,29 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Set up pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.12.1
-          run_install: false
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
+      - name: Extract launcher source archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p extracted
+          unzip -q launcherreplit-with-build-workflow.zip -d extracted
+          echo "Archive contents (top levels):"
+          find extracted -maxdepth 3 -type f | sort | head -200
+          GRADLEW="$(find extracted -type f -name gradlew -print -quit)"
+          if [[ -z "$GRADLEW" ]]; then
+            echo "No Gradle wrapper (gradlew) was found in the source archive." >&2
+            exit 1
+          fi
+          ANDROID_DIR="$(dirname "$GRADLEW")"
+          echo "ANDROID_PROJECT_DIR=$ANDROID_DIR" >> "$GITHUB_ENV"
+          echo "Android project directory: $ANDROID_DIR"
+          PACKAGE_JSON="$(find extracted -type f -name package.json -not -path '*/node_modules/*' -print -quit)"
+          if [[ -n "$PACKAGE_JSON" ]]; then
+            echo "PACKAGE_JSON_DIR=$(dirname "$PACKAGE_JSON")" >> "$GITHUB_ENV"
+            echo "Found package.json at $PACKAGE_JSON"
+          else
+            echo "No package.json found; treating this as a native Gradle project."
+          fi
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -50,42 +60,69 @@ jobs:
       - name: Set up Android command-line tools
         uses: android-actions/setup-android@v3
         with:
-          # Explicitly override the action's legacy default package "tools".
           packages: platform-tools
 
       - name: Install Android SDK packages
         shell: bash
         run: |
           set -eu
-          echo "Android SDK root: ${ANDROID_HOME:-${ANDROID_SDK_ROOT:-not set}}"
           command -v sdkmanager
-          # Avoid SIGPIPE from `yes` when sdkmanager finishes reading licenses.
           set +o pipefail
           yes | sdkmanager --licenses
           set -o pipefail
           sdkmanager --install "platform-tools" "platforms;android-35" "build-tools;35.0.0"
-          sdkmanager --list_installed
 
-      - name: Install workspace dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Set up pnpm
+        if: env.PACKAGE_JSON_DIR != ''
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.1
+          run_install: false
+
+      - name: Set up Node.js
+        if: env.PACKAGE_JSON_DIR != ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install JavaScript dependencies
+        if: env.PACKAGE_JSON_DIR != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$PACKAGE_JSON_DIR"
+          if [[ -f pnpm-lock.yaml ]]; then
+            pnpm install --frozen-lockfile
+          elif [[ -f package-lock.json ]]; then
+            npm ci
+          elif [[ -f yarn.lock ]]; then
+            corepack enable
+            yarn install --immutable
+          else
+            npm install
+          fi
 
       - name: Build release APK
-        working-directory: artifacts/swift-launcher/android
+        shell: bash
         env:
           CI: '1'
         run: |
+          set -euo pipefail
+          cd "$ANDROID_PROJECT_DIR"
           chmod +x ./gradlew
           ./gradlew --no-daemon --stacktrace assembleRelease
 
-      - name: Verify APK exists
+      - name: Find and verify APK
         shell: bash
         run: |
-          APK="artifacts/swift-launcher/android/app/build/outputs/apk/release/app-release.apk"
-          if [[ ! -s "$APK" ]]; then
-            echo "Expected APK was not created: $APK" >&2
-            find artifacts/swift-launcher/android/app/build/outputs -maxdepth 5 -type f -print || true
+          set -euo pipefail
+          APK="$(find extracted -type f -path '*/build/outputs/apk/release/*.apk' -size +0c -print -quit)"
+          if [[ -z "$APK" ]]; then
+            echo "No non-empty release APK was created." >&2
+            find extracted -type f -path '*/build/outputs/*' -print || true
             exit 1
           fi
+          echo "APK_PATH=$APK" >> "$GITHUB_ENV"
           echo "APK created: $APK"
           ls -lh "$APK"
 
@@ -93,6 +130,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: swift-launcher-release-apk
-          path: artifacts/swift-launcher/android/app/build/outputs/apk/release/app-release.apk
+          path: ${{ env.APK_PATH }}
           if-no-files-found: error
           retention-days: 30
