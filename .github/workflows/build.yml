@@ -107,6 +107,16 @@ jobs:
           echo "Installed dependencies from $PACKAGE_JSON_DIR"
           test -d node_modules
 
+      - name: Install missing Expo config plugin dependency
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$PACKAGE_JSON_DIR"
+          # The bundled Swift Launcher config plugin imports this package directly,
+          # but it is not declared as a direct dependency in the source archive.
+          pnpm add --save-dev @expo/config-plugins@57.0.10
+          node -e "console.log('Resolved @expo/config-plugins:', require.resolve('@expo/config-plugins'))"
+
       - name: Diagnose Node project resolution
         shell: bash
         run: |
