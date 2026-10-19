@@ -121,6 +121,28 @@ jobs:
           echo "Relevant node_modules directories:"
           find "$(dirname "$ANDROID_PROJECT_DIR")" -maxdepth 3 -type d -name node_modules -print || true
 
+      - name: Add missing Android library namespace
+        shell: bash
+        run: |
+          set -euo pipefail
+          MODULE_DIR="$ANDROID_PROJECT_DIR/modules/swift-launcher/android"
+          BUILD_FILE="$MODULE_DIR/build.gradle"
+          if [[ -f "$BUILD_FILE" ]] && ! grep -Eq '^[[:space:]]*namespace[[:space:]]' "$BUILD_FILE"; then
+            MANIFEST="$MODULE_DIR/src/main/AndroidManifest.xml"
+            NAMESPACE=""
+            if [[ -f "$MANIFEST" ]]; then
+              NAMESPACE="$(sed -n 's/.*package=[\"'"'"']\([^\"'"'"']*\)[\"'"'"'].*/\1/p' "$MANIFEST" | head -1)"
+            fi
+            if [[ -z "$NAMESPACE" ]]; then
+              NAMESPACE="com.swiftlauncher.native"
+            fi
+            echo "Adding namespace $NAMESPACE to $BUILD_FILE"
+            sed -i "/^[[:space:]]*android[[:space:]]*{/a\\    namespace '$NAMESPACE'" "$BUILD_FILE"
+          else
+            echo "Namespace already exists or custom module build file is absent; no patch needed."
+          fi
+          sed -n '1,45p' "$BUILD_FILE" 2>/dev/null || true
+
       - name: Build release APK
         shell: bash
         env:
