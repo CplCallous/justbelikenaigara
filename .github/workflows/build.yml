@@ -43,12 +43,15 @@ jobs:
           ANDROID_DIR="$(dirname "$GRADLEW")"
           echo "ANDROID_PROJECT_DIR=$ANDROID_DIR" >> "$GITHUB_ENV"
           echo "Android project directory: $ANDROID_DIR"
-          PACKAGE_JSON="$(find extracted -type f -name package.json -not -path '*/node_modules/*' -print -quit)"
+          # Install at the archive's workspace root, where the workspace lockfile lives.
+          PACKAGE_JSON="$(find extracted -mindepth 2 -maxdepth 3 -type f -name package.json -not -path '*/node_modules/*' -print | while read -r file; do dir="$(dirname "$file")"; if [[ -f "$dir/pnpm-lock.yaml" || -f "$dir/package-lock.json" || -f "$dir/yarn.lock" ]]; then echo "$file"; break; fi; done)"
           if [[ -n "$PACKAGE_JSON" ]]; then
             echo "PACKAGE_JSON_DIR=$(dirname "$PACKAGE_JSON")" >> "$GITHUB_ENV"
-            echo "Found package.json at $PACKAGE_JSON"
+            echo "Found workspace package.json at $PACKAGE_JSON"
+            ls -la "$(dirname "$PACKAGE_JSON")"
           else
-            echo "No package.json found; treating this as a native Gradle project."
+            echo "No workspace package.json with a lockfile found." >&2
+            exit 1
           fi
 
       - name: Set up Java
@@ -101,6 +104,22 @@ jobs:
           else
             npm install
           fi
+          echo "Installed dependencies from $PACKAGE_JSON_DIR"
+          test -d node_modules
+
+      - name: Diagnose Node project resolution
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$ANDROID_PROJECT_DIR"
+          echo "Android settings.gradle:"
+          sed -n '1,100p' settings.gradle
+          echo "Node and package manager versions:"
+          node --version
+          pnpm --version
+          echo "Workspace root: $PACKAGE_JSON_DIR"
+          echo "Relevant node_modules directories:"
+          find "$(dirname "$ANDROID_PROJECT_DIR")" -maxdepth 3 -type d -name node_modules -print || true
 
       - name: Build release APK
         shell: bash
