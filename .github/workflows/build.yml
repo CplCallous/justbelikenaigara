@@ -125,7 +125,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          MODULE_DIR="$ANDROID_PROJECT_DIR/modules/swift-launcher/android"
+          MODULE_DIR="$(dirname "$ANDROID_PROJECT_DIR")/modules/swift-launcher/android"
           BUILD_FILE="$MODULE_DIR/build.gradle"
           if [[ -f "$BUILD_FILE" ]] && ! grep -Eq '^[[:space:]]*namespace[[:space:]]' "$BUILD_FILE"; then
             MANIFEST="$MODULE_DIR/src/main/AndroidManifest.xml"
