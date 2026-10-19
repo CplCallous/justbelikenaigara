@@ -173,21 +173,24 @@ jobs:
           SOURCE="$(dirname "$ANDROID_PROJECT_DIR")/artifacts/swift-launcher/modules/swift-launcher/android/src/main/java/expo/modules/swiftlauncher/SwiftLauncherModule.kt"
           test -f "$SOURCE"
           python3 - "$SOURCE" <<'PY'
-          import pathlib, sys
+          import pathlib, re, sys
           p = pathlib.Path(sys.argv[1])
           lines = p.read_text().splitlines(keepends=True)
-          # These four Promise-handling AsyncFunction lambdas end with promise.resolve/reject,
-          # whose Unit return is inferred against Expo's Any? function signature.
-          for number in (229, 127, 73, 67):
-              if len(lines) < number or "promise." not in lines[number - 1]:
-                  raise SystemExit(f"Unexpected SwiftLauncherModule.kt at line {number}: " +
-                                   (lines[number - 1].rstrip() if len(lines) >= number else "<EOF>"))
-              indent = lines[number - 1][:len(lines[number - 1]) - len(lines[number - 1].lstrip())]
-              lines.insert(number, indent + "null\n")
+          # Patch by source pattern, not fixed line numbers: line numbers shift when
+          # upstream source changes. Only Promise calls inside the native module need
+          # an explicit nullable return for Expo's AsyncFunction signature.
+          targets = [i for i, line in enumerate(lines)
+                     if re.search(r'\bpromise\.(?:resolve|reject)\s*\(', line)]
+          if len(targets) != 4:
+              raise SystemExit(f"Expected 4 Promise resolve/reject call sites, found {len(targets)}: " +
+                               ", ".join(str(i + 1) for i in targets))
+          for i in reversed(targets):
+              indent = lines[i][:len(lines[i]) - len(lines[i].lstrip())]
+              lines.insert(i + 1, indent + "null\n")
           p.write_text("".join(lines))
-          print("Added explicit null return values to four Promise-handling AsyncFunction lambdas.")
+          print(f"Added explicit null returns after {len(targets)} Promise calls.")
           PY
-          nl -ba "$SOURCE" | sed -n '60,80p;120,135p;225,240p'
+          grep -n -A1 -E 'promise\.(resolve|reject)\(' "$SOURCE"
 
       - name: Build release APK
         shell: bash
