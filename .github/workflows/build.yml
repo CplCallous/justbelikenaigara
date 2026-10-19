@@ -53,7 +53,7 @@ jobs:
       - name: Install Android SDK packages
         shell: bash
         run: |
-          set -euo pipefail
+          set -eu
           echo "Android SDK root: ${ANDROID_HOME:-${ANDROID_SDK_ROOT:-not set}}"
           command -v sdkmanager
           yes | sdkmanager --licenses
