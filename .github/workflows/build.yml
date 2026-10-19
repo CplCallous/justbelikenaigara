@@ -59,7 +59,10 @@ jobs:
           set -eu
           echo "Android SDK root: ${ANDROID_HOME:-${ANDROID_SDK_ROOT:-not set}}"
           command -v sdkmanager
+          # Avoid SIGPIPE from `yes` when sdkmanager finishes reading licenses.
+          set +o pipefail
           yes | sdkmanager --licenses
+          set -o pipefail
           sdkmanager --install "platform-tools" "platforms;android-35" "build-tools;35.0.0"
           sdkmanager --list_installed
 
