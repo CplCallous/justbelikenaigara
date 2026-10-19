@@ -47,12 +47,18 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Android SDK
+      - name: Set up Android command-line tools
         uses: android-actions/setup-android@v3
-        with:
-          # This action expects a comma-separated package list.
-          # Do not request the removed legacy SDK package "tools".
-          packages: 'platform-tools,platforms;android-35,build-tools;35.0.0'
+
+      - name: Install Android SDK packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Android SDK root: ${ANDROID_HOME:-${ANDROID_SDK_ROOT:-not set}}"
+          command -v sdkmanager
+          yes | sdkmanager --licenses
+          sdkmanager --install "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+          sdkmanager --list_installed
 
       - name: Install workspace dependencies
         run: pnpm install --frozen-lockfile
