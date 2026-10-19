@@ -137,7 +137,15 @@ jobs:
               NAMESPACE="com.swiftlauncher.native"
             fi
             echo "Adding namespace $NAMESPACE to $BUILD_FILE"
-            sed -i "/^[[:space:]]*android[[:space:]]*{/a\\    namespace '$NAMESPACE'" "$BUILD_FILE"
+            if grep -Eq '^[[:space:]]*android[[:space:]]*\\{' "$BUILD_FILE"; then
+              sed -i "/^[[:space:]]*android[[:space:]]*{/a\\    namespace '$NAMESPACE'" "$BUILD_FILE"
+            else
+              printf "\\nandroid {\\n    namespace '%s'\\n}\\n" "$NAMESPACE" >> "$BUILD_FILE"
+            fi
+            if ! grep -Eq "^[[:space:]]*namespace[[:space:]]+['\\\"]$NAMESPACE['\\\"]" "$BUILD_FILE"; then
+              echo "Failed to insert namespace into $BUILD_FILE" >&2
+              exit 1
+            fi
           else
             echo "Namespace already exists or custom module build file is absent; no patch needed."
           fi
