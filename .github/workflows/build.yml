@@ -49,6 +49,9 @@ jobs:
 
       - name: Set up Android command-line tools
         uses: android-actions/setup-android@v3
+        with:
+          # Explicitly override the action's legacy default package "tools".
+          packages: platform-tools
 
       - name: Install Android SDK packages
         shell: bash
