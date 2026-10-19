@@ -170,7 +170,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          SOURCE="$(dirname "$ANDROID_PROJECT_DIR")/artifacts/swift-launcher/modules/swift-launcher/android/src/main/java/expo/modules/swiftlauncher/SwiftLauncherModule.kt"
+          SOURCE="$(dirname "$ANDROID_PROJECT_DIR")/modules/swift-launcher/android/src/main/java/expo/modules/swiftlauncher/SwiftLauncherModule.kt"
           test -f "$SOURCE"
           python3 - "$SOURCE" <<'PY'
           import pathlib, re, sys
