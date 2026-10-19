@@ -114,7 +114,7 @@ jobs:
           cd "$PACKAGE_JSON_DIR"
           # The bundled Swift Launcher config plugin imports this package directly,
           # but it is not declared as a direct dependency in the source archive.
-          pnpm add --save-dev @expo/config-plugins@57.0.10
+          pnpm add --workspace-root --save-dev @expo/config-plugins@57.0.10
           node -e "console.log('Resolved @expo/config-plugins:', require.resolve('@expo/config-plugins'))"
 
       - name: Diagnose Node project resolution
